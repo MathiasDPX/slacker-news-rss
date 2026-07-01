@@ -1,9 +1,10 @@
+from rss_parser import RSSParser
 from dotenv import load_dotenv
 from os import getenv, path
-import feedparser
 import requests
 import logging
 import json
+import xmltodict
 
 load_dotenv()
 logging.basicConfig(
@@ -30,12 +31,19 @@ if RSS_FEED == None or SLACK_WEBHOOK == None:
     exit()
 
 
-def send_message(entry):
-    title = entry.title
-    description = entry.description
-    ogSrc = entry.get("media_thumbnail", [{}])[0].get(
-        "url",
-        "https://cdn.hackclub.com/019dbae9-5242-745b-acd2-3476ab3c52a3/og-default.png",
+def send_message(entry, raw_entry):
+    title = entry.title.content
+    description = entry.description.content
+    link = entry.links[0].content
+
+    mc = raw_entry.get("media:content", {}) or {}
+    mt = raw_entry.get("media:title", {}) or {}
+
+    ogSrc = mc.get("@url", "") if isinstance(mc, dict) else ""
+    alt_text = (
+        mt.get("#text", f"'{title}' social preview")
+        if isinstance(mt, dict)
+        else f"'{title}' social preview"
     )
 
     data = {
@@ -45,13 +53,14 @@ def send_message(entry):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"<{entry.link}|{title}>\n{description}",
+                    "text": f"<{link}|{title}>\n{description}",
                 },
             },
             {
                 "type": "image",
                 "image_url": ogSrc,
-                "alt_text": f"'{title}' social preview",
+                "alt_text": alt_text,
+                "title": {"type": "plain_text", "text": alt_text, "emoji": True},
             },
         ],
     }
@@ -62,17 +71,26 @@ def send_message(entry):
 
 
 def main():
-    feed = feedparser.parse(RSS_FEED, resolve_relative_uris=True)
-
-    if feed.status != 200:
-        logging.error(f"RSS feed returned an invalid status code ({feed.status})")
+    try:
+        r = requests.get(RSS_FEED)
+        r.raise_for_status()
+        data = r.text
+    except:
+        logging.error(f"Failed to fetch RSS feed (status code {r.status_code})")
         return
 
-    for entry in feed.entries:
-        guid = entry.guid
+    feed = RSSParser().parse(data)
+    raw = xmltodict.parse(data)
+    raw_items = raw.get("rss", {}).get("channel", {}).get("item", [])
+    if not isinstance(raw_items, list):
+        raw_items = [raw_items]
+
+    for i, entry in enumerate(feed.channel.items):
+        guid = entry.guid.content
 
         if guid not in database:
-            resp = send_message(entry)
+            raw_entry = raw_items[i] if i < len(raw_items) else {}
+            resp = send_message(entry, raw_entry)
 
             if resp.status_code != 200:
                 logging.error(f"Failed to send notification ({resp.status_code})")
