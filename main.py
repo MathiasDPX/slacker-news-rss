@@ -1,20 +1,30 @@
 from dotenv import load_dotenv
-from os import getenv
+from os import getenv, path
 import feedparser
 import requests
+import logging
 import json
 
 load_dotenv()
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 
 RSS_FEED = getenv("RSS_FEED")
 SLACK_WEBHOOK = getenv("SLACK_WEBHOOK")
+DATABASE_PATH = getenv("DATABASE_PATH", "database.json")
 
-database = json.load(open("database.json", "r", encoding="utf-8"))
+if not path.exists(DATABASE_PATH):
+    with open(DATABASE_PATH, "w+", encoding="utf-8") as f:
+        json.dump([], f)
+
+database = json.load(open(DATABASE_PATH, "r", encoding="utf-8"))
 
 if RSS_FEED == None:
-    print("Missing RSS_FEED environment variable")
+    logging.error("Missing RSS_FEED environment variable")
 if SLACK_WEBHOOK == None:
-    print("Missing SLACK_WEBHOOK environment variable")
+    logging.error("Missing SLACK_WEBHOOK environment variable")
 
 if RSS_FEED == None or SLACK_WEBHOOK == None:
     exit()
@@ -43,7 +53,7 @@ def main():
     feed = feedparser.parse(RSS_FEED)
 
     if feed.status != 200:
-        print(f"RSS feed returned an invalid status code ({feed.status})")
+        logging.error(f"RSS feed returned an invalid status code ({feed.status})")
         return
 
     for entry in feed.entries:
@@ -53,15 +63,13 @@ def main():
             resp = send_message(entry)
 
             if resp.status_code != 200:
-                print("Failed to send notification")
-                print(resp.status_code)
-                print(resp.content)
-                print(resp.headers)
+                logging.error(f"Failed to send notification ({resp.status_code})")
+                logging.info(resp.content)
+            else:
+                logging.info(f"New article -> {entry.title}")
+                database.append(guid)
 
-            print(f"New article -> {entry.title}")
-            database.append(guid)
-
-    with open("database.json", "w+", encoding="utf-8") as f:
+    with open(DATABASE_PATH, "w+", encoding="utf-8") as f:
         json.dump(database, f, ensure_ascii=False, indent=2)
 
 
