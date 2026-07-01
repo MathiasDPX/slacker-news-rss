@@ -31,16 +31,28 @@ if RSS_FEED == None or SLACK_WEBHOOK == None:
 
 
 def send_message(entry):
+    title = entry.title
+    description = entry.description
+    ogSrc = entry.get("media_thumbnail", [{}])[0].get(
+        "url",
+        "https://cdn.hackclub.com/019dbae9-5242-745b-acd2-3476ab3c52a3/og-default.png",
+    )
+
     data = {
-        "text": f"{entry.title}\n> {entry.description}",
+        "text": f"{title}\n> {description}",
         "blocks": [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"<{entry.link}|{entry.title}>\n{entry.description}",
+                    "text": f"<{entry.link}|{title}>\n{description}",
                 },
-            }
+            },
+            {
+                "type": "image",
+                "image_url": ogSrc,
+                "alt_text": f"'{title}' social preview",
+            },
         ],
     }
 
@@ -50,7 +62,7 @@ def send_message(entry):
 
 
 def main():
-    feed = feedparser.parse(RSS_FEED)
+    feed = feedparser.parse(RSS_FEED, resolve_relative_uris=True)
 
     if feed.status != 200:
         logging.error(f"RSS feed returned an invalid status code ({feed.status})")
