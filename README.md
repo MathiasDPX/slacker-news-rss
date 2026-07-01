@@ -1,6 +1,6 @@
 # Slacker News RSS
 
-Smol program to send webhooks to [#slacker-news](https://hackclub.enterprise.slack.com/archives/C0ALDCF90K1)
+Small program to send webhooks to [#slacker-news](https://hackclub.enterprise.slack.com/archives/C0ALDCF90K1) when a new post comes out
 
 ## How it work
 
