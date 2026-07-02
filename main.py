@@ -74,7 +74,7 @@ def main():
     try:
         r = requests.get(RSS_FEED)
         r.raise_for_status()
-        data = r.text
+        data = r.content.decode("utf-8")
     except:
         logging.error(f"Failed to fetch RSS feed (status code {r.status_code})")
         return
