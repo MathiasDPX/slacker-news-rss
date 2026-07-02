@@ -29,7 +29,7 @@ After installing the Docker compose and environment variable, make sure the bot 
 ```yaml
 services:
   slacker-news-rss:
-    build: .
+    image: ghcr.io/mathiasdpx/slacker-news-rss:latest
     restart: unless-stopped
     container_name: slacker-news-rss
     env_file:
