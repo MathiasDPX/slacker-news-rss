@@ -13,7 +13,7 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 load_dotenv()
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=getenv("LOG_LEVEL", "INFO"), format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 
@@ -138,6 +138,7 @@ def check_feed():
                 new_count += 1
 
         if new_count:
+            logging.info(f"Sent posts to {len(channels)} channels: {', '.join(channels)}")
             save_database()
 
     return new_count
