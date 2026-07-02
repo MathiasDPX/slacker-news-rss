@@ -1,10 +1,15 @@
 from rss_parser import RSSParser
 from dotenv import load_dotenv
 from os import getenv, path
+from threading import Thread, Lock
+import time
 import requests
 import logging
 import json
 import xmltodict
+
+from slack_bolt import App
+from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 load_dotenv()
 logging.basicConfig(
@@ -13,25 +18,44 @@ logging.basicConfig(
 
 
 RSS_FEED = getenv("RSS_FEED")
-SLACK_WEBHOOK = getenv("SLACK_WEBHOOK")
+SLACK_BOT_TOKEN = getenv("SLACK_BOT_TOKEN")
+SLACK_APP_TOKEN = getenv("SLACK_APP_TOKEN")
 DATABASE_PATH = getenv("DATABASE_PATH", "database.json")
+INTERVAL_SECONDS = int(getenv("INTERVAL_SECONDS", "1800"))
+
+missing = [
+    name
+    for name, value in {
+        "RSS_FEED": RSS_FEED,
+        "SLACK_BOT_TOKEN": SLACK_BOT_TOKEN,
+        "SLACK_APP_TOKEN": SLACK_APP_TOKEN
+    }.items()
+    if not value
+]
+if missing:
+    for name in missing:
+        logging.error(f"Missing {name} environment variable")
+    exit(1)
+
 
 if not path.exists(DATABASE_PATH):
     with open(DATABASE_PATH, "w+", encoding="utf-8") as f:
         json.dump([], f)
 
-database = json.load(open(DATABASE_PATH, "r", encoding="utf-8"))
+with open(DATABASE_PATH, "r", encoding="utf-8") as f:
+    database = json.load(f)
 
-if RSS_FEED == None:
-    logging.error("Missing RSS_FEED environment variable")
-if SLACK_WEBHOOK == None:
-    logging.error("Missing SLACK_WEBHOOK environment variable")
+db_lock = Lock()
 
-if RSS_FEED == None or SLACK_WEBHOOK == None:
-    exit()
+app = App(token=SLACK_BOT_TOKEN)
 
 
-def send_message(entry, raw_entry):
+def save_database():
+    with open(DATABASE_PATH, "w+", encoding="utf-8") as f:
+        json.dump(database, f, ensure_ascii=False, indent=2)
+
+
+def build_blocks(entry, raw_entry):
     title = entry.title.content
     description = entry.description.content
     link = entry.links[0].content
@@ -46,38 +70,47 @@ def send_message(entry, raw_entry):
         else f"'{title}' social preview"
     )
 
-    data = {
-        "text": f"{title}\n> {description}",
-        "blocks": [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"<{link}|{title}>\n{description}",
-                },
+    blocks = [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"<{link}|{title}>\n{description}",
             },
+        }
+    ]
+
+    if ogSrc:
+        blocks.append(
             {
                 "type": "image",
                 "image_url": ogSrc,
                 "alt_text": alt_text,
                 "title": {"type": "plain_text", "text": alt_text, "emoji": True},
-            },
-        ],
-    }
+            }
+        )
 
-    r = requests.post(SLACK_WEBHOOK, json=data)
-
-    return r
+    return title, description, blocks
 
 
-def main():
+def send_message(channel, entry, raw_entry):
+    title, description, blocks = build_blocks(entry, raw_entry)
+    return app.client.chat_postMessage(
+        channel=channel,
+        text=f"{title}\n> {description}",
+        blocks=blocks,
+        unfurl_links=False
+    )
+
+
+def check_feed():
     try:
         r = requests.get(RSS_FEED)
         r.raise_for_status()
         data = r.content.decode("utf-8")
-    except:
-        logging.error(f"Failed to fetch RSS feed (status code {r.status_code})")
-        return
+    except Exception as e:
+        logging.error(f"Failed to fetch RSS feed: {e}")
+        return 0
 
     feed = RSSParser().parse(data)
     raw = xmltodict.parse(data)
@@ -85,22 +118,50 @@ def main():
     if not isinstance(raw_items, list):
         raw_items = [raw_items]
 
-    for i, entry in enumerate(feed.channel.items):
-        guid = entry.guid.content
+    channels = get_bot_channels()
+    
+    new_count = 0
+    with db_lock:
+        for i, entry in enumerate(feed.channel.items):
+            guid = entry.guid.content
 
-        if guid not in database:
-            raw_entry = raw_items[i] if i < len(raw_items) else {}
-            resp = send_message(entry, raw_entry)
+            if guid not in database:
+                raw_entry = raw_items[i] if i < len(raw_items) else {}
+                for channel in channels:
+                    try:
+                        send_message(channel, entry, raw_entry)
+                    except Exception as e:
+                        logging.error(f"Failed to send notification to {channel}: {e}")
 
-            if resp.status_code != 200:
-                logging.error(f"Failed to send notification ({resp.status_code})")
-                logging.info(resp.content)
-            else:
-                logging.info(f"New article -> {entry.title}")
+                logging.info(f"New article -> {entry.title.content}")
                 database.append(guid)
+                new_count += 1
 
-    with open(DATABASE_PATH, "w+", encoding="utf-8") as f:
-        json.dump(database, f, ensure_ascii=False, indent=2)
+        if new_count:
+            save_database()
+
+    return new_count
+
+def get_bot_channels():
+    channels = app.client.users_conversations(
+        types="public_channel,private_channel",
+        limit=1000
+    )["channels"]
+
+    return [c["id"] for c in channels]
+
+
+def poll_loop():    
+    while True:
+        logging.info("Checking RSS feed...")
+        check_feed()
+        logging.info(f"Sleeping for {INTERVAL_SECONDS}s...")
+        time.sleep(INTERVAL_SECONDS)
+
+
+def main():
+    Thread(target=poll_loop, daemon=True).start()
+    SocketModeHandler(app, SLACK_APP_TOKEN).start()
 
 
 if __name__ == "__main__":

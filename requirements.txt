@@ -1,3 +1,5 @@
 requests
 rss-parser
 python-dotenv
+xmltodict
+slack-bolt
