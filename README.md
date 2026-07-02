@@ -1,6 +1,6 @@
 # Slacker News RSS
 
-Small program to send webhooks to [#slacker-news](https://hackclub.enterprise.slack.com/archives/C0ALDCF90K1) when a new post comes out
+Small program to send to Slack channels when a new [HackClub News](https://news.hackclub.com) post comes out
 
 ## How it work
 
@@ -10,15 +10,19 @@ flowchart TB
     n1["Wake up"] --> n2["Check for new posts"]
     n2 -- Nothing happened --> n3["Wait 30 minutes"]
     n3 --> n1
-    n2 --> n4["Post article to Slack<br>Add to database.json"]
-    n4 --> n3
+    n4["Post article to Slack<br>Add to database.json"] --> n3
+    n2 --> n5@{ label: "List channels it's in" }
+    n5 --> n4
 
     n1@{ shape: rect}
     n3@{ shape: rect}
     n4@{ shape: rect}
+    n5@{ shape: rect}
 ```
 
 ## Installation
+
+After installing the Docker compose and environment variable, make sure the bot isn't in any channels to don't bomb your channels with 10**67 messages (as the database is empty)
 
 ### docker-compose.yml
 
@@ -41,5 +45,6 @@ services:
 
 ```toml
 RSS_FEED="https://news.hackclub.com/feed.xml"
-SLACK_WEBHOOK="https://hooks.slack.com/services/_________/___________/________________________"
+SLACK_BOT_TOKEN="xoxb-_____"
+SLACK_APP_TOKEN="xapp-_____"
 ```
