@@ -77,7 +77,7 @@ def build_blocks(entry, raw_entry):
             "text": {
                 "type": "mrkdwn",
                 "text": f"<{link}|{title}>\n{description}",
-            },
+            }
         }
     ]
 
@@ -100,7 +100,8 @@ def send_message(channel, entry, raw_entry):
         channel=channel,
         text=f"{title}\n> {description}",
         blocks=blocks,
-        unfurl_links=False
+        unfurl_links=False,
+        unfurl_media=False
     )
 
 
