@@ -48,3 +48,8 @@ RSS_FEED="https://news.hackclub.com/feed.xml"
 SLACK_BOT_TOKEN="xoxb-_____"
 SLACK_APP_TOKEN="xapp-_____"
 ```
+
+
+## Development
+
+You can restrict channels with the `SLACK_CHANNELS` env variable. You can have multiple channels by adding a commas between ids

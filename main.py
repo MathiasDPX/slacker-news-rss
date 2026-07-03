@@ -20,6 +20,7 @@ logging.basicConfig(
 RSS_FEED = getenv("RSS_FEED")
 SLACK_BOT_TOKEN = getenv("SLACK_BOT_TOKEN")
 SLACK_APP_TOKEN = getenv("SLACK_APP_TOKEN")
+SLACK_CHANNELS = getenv("SLACK_CHANNELS")
 DATABASE_PATH = getenv("DATABASE_PATH", "database.json")
 INTERVAL_SECONDS = int(getenv("INTERVAL_SECONDS", "1800"))
 
@@ -144,6 +145,9 @@ def check_feed():
     return new_count
 
 def get_bot_channels():
+    if SLACK_CHANNELS != None:
+        return SLACK_CHANNELS.split(",")
+    
     channels = app.client.users_conversations(
         types="public_channel,private_channel",
         limit=1000
