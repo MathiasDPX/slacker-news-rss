@@ -2,6 +2,7 @@ from rss_parser import RSSParser
 from dotenv import load_dotenv
 from os import getenv, path
 from email.utils import parsedate_to_datetime
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from threading import Thread, Lock
 import re
 import time
@@ -26,6 +27,9 @@ SLACK_APP_TOKEN = getenv("SLACK_APP_TOKEN")
 SLACK_CHANNELS = getenv("SLACK_CHANNELS")
 DATABASE_PATH = getenv("DATABASE_PATH", "database.json")
 INTERVAL_SECONDS = int(getenv("INTERVAL_SECONDS", "1800"))
+HEADERS = {
+    "User-Agent": "slacker-news-bot"
+}
 
 missing = [
     name
@@ -71,7 +75,7 @@ def smart_cut(text, limit):
 
 def get_authors(link):
     try:
-        r = requests.get(link)
+        r = requests.get(link, headers=HEADERS)
         soup = BeautifulSoup(r.text, "html.parser")
 
         # Follow meta-refresh redirects
@@ -84,7 +88,7 @@ def get_authors(link):
                 target = match.group(1).strip()
                 if target.startswith("/"):
                     target = urljoin(r.url, target)
-                r = requests.get(target)
+                r = requests.get(target, headers=HEADERS)
                 soup = BeautifulSoup(r.text, "html.parser")
 
         span = soup.find("span", class_="story-author")
@@ -118,6 +122,13 @@ def get_authors(link):
         return None
 
 
+def add_parameter(url, params):
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+    query.update(params)
+    return urlunparse(parsed._replace(query=urlencode(query, doseq=True)))
+
+
 def build_blocks(entry, raw_entry):
     title = entry.title.content
     description = entry.description.content
@@ -141,8 +152,8 @@ def build_blocks(entry, raw_entry):
     # Cut title to 150 minus the size taken by the mrkdwn link
     title_mrkdwn = smart_cut(title, 150-len(f"<{link}|>"))
     description = smart_cut(description, 200)
-
     authors = get_authors(link) or "unknown"
+    link = add_parameter(link, {"ref": "slack-bot"})
 
     card = {
         "type": "card",
@@ -188,7 +199,7 @@ def send_message(channel, entry, raw_entry):
 
 def check_feed():
     try:
-        r = requests.get(RSS_FEED)
+        r = requests.get(RSS_FEED, headers=HEADERS)
         r.raise_for_status()
         data = r.content.decode("utf-8")
     except Exception as e:
