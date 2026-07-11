@@ -56,6 +56,15 @@ def save_database():
         json.dump(database, f, ensure_ascii=False, indent=2)
 
 
+def smart_cut(text, limit):
+    if len(text) > limit:
+        cut = text[:limit - 3]
+        if " " in cut:
+            cut = cut.rsplit(" ", 1)[0]
+        text = cut + "..."
+        
+    return text
+
 def build_blocks(entry, raw_entry):
     title = entry.title.content
     description = entry.description.content
@@ -70,26 +79,33 @@ def build_blocks(entry, raw_entry):
         if isinstance(mt, dict)
         else f"'{title}' social preview"
     )
+    
+    # Cut title to 150 minus the size taken by the mrkdwn link
+    title_mrkdwn = smart_cut(title, 150-len(f"<{link}|>"))
+    description = smart_cut(description, 200)
 
     blocks = [
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"<{link}|{title}>\n{description}",
-            }
-        }
-    ]
-
-    if ogSrc:
-        blocks.append(
-            {
-                "type": "image",
-                "image_url": ogSrc,
-                "alt_text": alt_text,
-                "title": {"type": "plain_text", "text": alt_text, "emoji": True},
-            }
-        )
+		{
+			"type": "card",
+			"title": {
+				"type": "mrkdwn",
+				"text": f"<{link}|{title_mrkdwn}>"
+			},
+			"subtitle": {
+				"type": "mrkdwn",
+				"text": "by @mathias"
+			},
+			"hero_image": {
+				"type": "image",
+				"image_url": ogSrc,
+				"alt_text": alt_text
+			},
+			"body": {
+				"type": "mrkdwn",
+				"text": description
+			}
+		}
+	]
 
     return title, description, blocks
 
@@ -133,6 +149,7 @@ def check_feed():
                     try:
                         send_message(channel, entry, raw_entry)
                     except Exception as e:
+                        raise e
                         logging.error(f"Failed to send notification to {channel}: {e}")
 
                 logging.info(f"New article -> {entry.title.content}")
