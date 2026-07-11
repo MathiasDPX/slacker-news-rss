@@ -1,6 +1,7 @@
 from rss_parser import RSSParser
 from dotenv import load_dotenv
 from os import getenv, path
+from email.utils import parsedate_to_datetime
 from threading import Thread, Lock
 import re
 import time
@@ -64,8 +65,9 @@ def smart_cut(text, limit):
         if " " in cut:
             cut = cut.rsplit(" ", 1)[0]
         text = cut + "..."
-        
+
     return text
+
 
 def get_authors(link):
     try:
@@ -115,10 +117,16 @@ def get_authors(link):
         logging.error(f"Failed to get authors from {link}: {e}")
         return None
 
+
 def build_blocks(entry, raw_entry):
     title = entry.title.content
     description = entry.description.content
     link = entry.links[0].content
+    
+    try:
+        pubdate = int(parsedate_to_datetime(entry.pub_date.content).timestamp())
+    except:
+        pubdate = 0
 
     mc = raw_entry.get("media:content", {}) or {}
     mt = raw_entry.get("media:title", {}) or {}
@@ -129,7 +137,7 @@ def build_blocks(entry, raw_entry):
         if isinstance(mt, dict)
         else f"'{title}' social preview"
     )
-    
+
     # Cut title to 150 minus the size taken by the mrkdwn link
     title_mrkdwn = smart_cut(title, 150-len(f"<{link}|>"))
     description = smart_cut(description, 200)
@@ -157,6 +165,12 @@ def build_blocks(entry, raw_entry):
         "type": "plain_text",
         "text": description
     }
+
+    if pubdate != 0:
+        card["subtext"] = {
+            "type": "mrkdwn",
+            "text": "Published <!date^"+ str(pubdate) +"^{date_pretty}|???>"
+        }
 
     return title, description, [card]
 
@@ -188,7 +202,7 @@ def check_feed():
         raw_items = [raw_items]
 
     channels = get_bot_channels()
-    
+
     new_count = 0
     with db_lock:
         for i, entry in enumerate(feed.channel.items):
@@ -200,22 +214,25 @@ def check_feed():
                     try:
                         send_message(channel, entry, raw_entry)
                     except Exception as e:
-                        logging.error(f"Failed to send {guid} notification to {channel}: {e}")
+                        logging.error(
+                            f"Failed to send {guid} notification to {channel}: {e}")
 
                 logging.info(f"New article -> {entry.title.content}")
                 database.append(guid)
                 new_count += 1
 
         if new_count:
-            logging.info(f"Sent posts to {len(channels)} channels: {', '.join(channels)}")
+            logging.info(
+                f"Sent posts to {len(channels)} channels: {', '.join(channels)}")
             save_database()
 
     return new_count
 
+
 def get_bot_channels():
     if SLACK_CHANNELS != None:
         return SLACK_CHANNELS.split(",")
-    
+
     channels = app.client.users_conversations(
         types="public_channel,private_channel",
         limit=1000
@@ -224,7 +241,7 @@ def get_bot_channels():
     return [c["id"] for c in channels]
 
 
-def poll_loop():    
+def poll_loop():
     while True:
         logging.info("Checking RSS feed...")
         check_feed()
