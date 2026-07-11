@@ -3,3 +3,4 @@ rss-parser
 python-dotenv
 xmltodict
 slack-bolt
+beautifulsoup4
