@@ -2,6 +2,7 @@ from rss_parser import RSSParser
 from dotenv import load_dotenv
 from os import getenv, path
 from threading import Thread, Lock
+import random
 import time
 import requests
 import logging
@@ -62,6 +63,43 @@ def send_message(channel, entry, raw_entry):
     title, description, blocks = build_blocks(entry, raw_entry)
     return app.client.chat_postMessage(
         channel=channel,
+        text=f"{title}\n> {description}",
+        blocks=blocks,
+        unfurl_links=False,
+        unfurl_media=False
+    )
+
+
+@app.command("/test")
+def test_command(ack, respond, command):
+    ack()
+    print("hi")
+
+    guid = command.get("text", "").strip()
+
+    r = requests.get(RSS_FEED, headers=HEADERS)
+    r.raise_for_status()
+    data = r.content.decode("utf-8")
+
+    raw = xmltodict.parse(data)
+    feed = RSSParser().parse(data)
+    raw_items = raw.get("rss", {}).get("channel", {}).get("item", [])
+    if not isinstance(raw_items, list):
+        raw_items = [raw_items]
+
+    if guid == "":
+        entry = random.choice(feed.channel.items)
+    else:
+        mapped_entries = {entry.guid.content.strip(): entry for entry in feed.channel.items}
+        if guid not in mapped_entries.keys():
+            respond("Post not found")
+            return
+
+        entry = mapped_entries[guid]
+
+    idx = feed.channel.items.index(entry)
+    title, description, blocks = build_blocks(entry, raw_items[idx])
+    respond(
         text=f"{title}\n> {description}",
         blocks=blocks,
         unfurl_links=False,
