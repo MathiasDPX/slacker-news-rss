@@ -70,10 +70,9 @@ def send_message(channel, entry, raw_entry):
     )
 
 
-@app.command("/test")
+@app.command("/news-test")
 def test_command(ack, respond, command):
     ack()
-    print("hi")
 
     guid = command.get("text", "").strip()
 
