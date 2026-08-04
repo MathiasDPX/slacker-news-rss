@@ -24,8 +24,11 @@ RSS_FEED = getenv("RSS_FEED")
 SLACK_BOT_TOKEN = getenv("SLACK_BOT_TOKEN")
 SLACK_APP_TOKEN = getenv("SLACK_APP_TOKEN")
 SLACK_CHANNELS = getenv("SLACK_CHANNELS")
+ADMINS = getenv("ADMINS").split(",")
 DATABASE_PATH = getenv("DATABASE_PATH", "database.json")
 INTERVAL_SECONDS = int(getenv("INTERVAL_SECONDS", "1800"))
+
+ADMINS = [admin.strip() for admin in ADMINS]
 
 missing = [
     name
@@ -61,6 +64,7 @@ def save_database():
 
 def send_message(channel, entry, raw_entry):
     title, description, blocks = build_blocks(entry, raw_entry)
+    return
     return app.client.chat_postMessage(
         channel=channel,
         text=f"{title}\n> {description}",
@@ -163,10 +167,18 @@ def get_bot_channels():
 
 def poll_loop():
     while True:
-        logging.info("Checking RSS feed...")
         check_feed()
-        logging.info(f"Sleeping for {INTERVAL_SECONDS}s...")
         time.sleep(INTERVAL_SECONDS)
+
+@app.shortcut("delete_message")
+def handle_shortcuts(ack, body, logger):
+    if body["user"]["id"] not in "U080HHYN0JD":
+        return
+    
+    ack()
+    app.client.chat_delete(
+            ts=body["message"]["ts"], channel=body["channel"]["id"]
+    )
 
 
 def main():

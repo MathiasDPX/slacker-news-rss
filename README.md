@@ -47,7 +47,10 @@ services:
 RSS_FEED="https://news.hackclub.com/feed.xml"
 SLACK_BOT_TOKEN="xoxb-_____"
 SLACK_APP_TOKEN="xapp-_____"
+ADMINS="U__________,U__________"
 ```
+
+`ADMINS` is user ids of peoples allowed to delete Slacker News messages with the "Delete message" shortcut, separated with commas
 
 
 ## Development
