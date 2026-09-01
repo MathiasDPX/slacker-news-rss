@@ -64,7 +64,6 @@ def save_database():
 
 def send_message(channel, entry, raw_entry):
     title, description, blocks = build_blocks(entry, raw_entry)
-    return
     return app.client.chat_postMessage(
         channel=channel,
         text=f"{title}\n> {description}",
