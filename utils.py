@@ -130,4 +130,12 @@ def build_blocks(entry, raw_entry):
             "text": "Published <!date^"+ str(pubdate) +"^{date_pretty}|???>"
         }
 
-    return title, description, [card]
+    headline_text = {
+		"type": "section",
+		"text": {
+			"type": "mrkdwn",
+			"text": title_mrkdwn
+		}
+    }
+
+    return title, description, [headline_text, card]
