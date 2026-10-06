@@ -12,7 +12,7 @@ import xmltodict
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
-from utils import HEADERS, build_blocks
+from utils import HEADERS, add_parameter, build_blocks
 
 load_dotenv()
 logging.basicConfig(
@@ -20,7 +20,8 @@ logging.basicConfig(
 )
 
 
-RSS_FEED = getenv("RSS_FEED")
+RSS_FEED = getenv("RSS_FEED", "https://news.hackclub.com/feed.xml")
+RSS_TOKEN = getenv("RSS_TOKEN")
 SLACK_BOT_TOKEN = getenv("SLACK_BOT_TOKEN")
 SLACK_APP_TOKEN = getenv("SLACK_APP_TOKEN")
 SLACK_CHANNELS = getenv("SLACK_CHANNELS")
@@ -33,7 +34,7 @@ ADMINS = [admin.strip() for admin in ADMINS]
 missing = [
     name
     for name, value in {
-        "RSS_FEED": RSS_FEED,
+        "RSS_TOKEN": RSS_TOKEN,
         "SLACK_BOT_TOKEN": SLACK_BOT_TOKEN,
         "SLACK_APP_TOKEN": SLACK_APP_TOKEN
     }.items()
@@ -43,6 +44,18 @@ if missing:
     for name in missing:
         logging.error(f"Missing {name} environment variable")
     exit(1)
+
+FEED_URL = add_parameter(RSS_FEED, {"include": "protected", "token": RSS_TOKEN})
+
+
+def fetch_feed():
+    r = requests.get(FEED_URL, headers=HEADERS)
+    r.raise_for_status()
+    return r.content.decode("utf-8")
+
+
+def redact(text):
+    return text.replace(RSS_TOKEN, "<token>")
 
 
 if not path.exists(DATABASE_PATH):
@@ -79,9 +92,7 @@ def test_command(ack, respond, command):
 
     guid = command.get("text", "").strip()
 
-    r = requests.get(RSS_FEED, headers=HEADERS)
-    r.raise_for_status()
-    data = r.content.decode("utf-8")
+    data = fetch_feed()
 
     raw = xmltodict.parse(data)
     feed = RSSParser().parse(data)
@@ -111,11 +122,9 @@ def test_command(ack, respond, command):
 
 def check_feed():
     try:
-        r = requests.get(RSS_FEED, headers=HEADERS)
-        r.raise_for_status()
-        data = r.content.decode("utf-8")
+        data = fetch_feed()
     except Exception as e:
-        logging.error(f"Failed to fetch RSS feed: {e}")
+        logging.error(redact(f"Failed to fetch RSS feed: {e}"))
         return 0
 
     feed = RSSParser().parse(data)
