@@ -44,11 +44,13 @@ services:
 ### Environment variable
 
 ```toml
-RSS_FEED="https://news.hackclub.com/feed.xml"
+RSS_TOKEN="_____"
 SLACK_BOT_TOKEN="xoxb-_____"
 SLACK_APP_TOKEN="xapp-_____"
 ADMINS="U__________,U__________"
 ```
+
+`RSS_TOKEN` is a private feed key from [news.hackclub.com/rss](https://news.hackclub.com/rss/). The bot reads `feed.xml?include=protected&token=<RSS_TOKEN>`: every article, protected ones included, and no Slack columns such as YSWS. `RSS_FEED` optionally points at another feed.xml, like a staging site.
 
 `ADMINS` is user ids of peoples allowed to delete Slacker News messages with the "Delete message" shortcut, separated with commas
 

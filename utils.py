@@ -99,7 +99,10 @@ def build_blocks(entry, raw_entry):
     # Cut title to 150 minus the size taken by the mrkdwn link
     title_mrkdwn = smart_cut(title, 150-len(f"<{link}|>"))
     description = smart_cut(description, 200)
-    authors = get_authors(link) or "unknown"
+    creator = raw_entry.get("dc:creator")
+    authors = (
+        creator if isinstance(creator, str) and creator.strip() else None
+    ) or get_authors(link) or "unknown"
     link = add_parameter(link, {"ref": "slack-bot"})
 
     card = {
