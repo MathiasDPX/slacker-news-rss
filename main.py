@@ -45,7 +45,16 @@ if missing:
         logging.error(f"Missing {name} environment variable")
     exit(1)
 
-FEED_URL = add_parameter(RSS_FEED, {"include": "protected", "token": RSS_TOKEN})
+FEED_COLUMNS = "news,opinion,essays,changelogs,protected"
+FEED_URL = add_parameter(
+    RSS_FEED,
+    {
+        "includeOnly": "1",
+        "include": FEED_COLUMNS,
+        "noKeyRevocationAlerts": "1",
+        "token": RSS_TOKEN,
+    },
+)
 
 
 def fetch_feed():
