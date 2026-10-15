@@ -142,6 +142,10 @@ def check_feed():
 
             if guid not in database:
                 raw_entry = raw_items[i] if i < len(raw_items) else {}
+                if "Your key is revoked" in entry.title.content:
+                    # Skip the "Your key is revoked" article
+                    continue
+                
                 for channel in channels:
                     try:
                         send_message(channel, entry, raw_entry)
