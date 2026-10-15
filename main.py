@@ -47,7 +47,13 @@ if missing:
 
 FEED_COLUMNS = "news,opinion,essays,changelogs,protected"
 FEED_URL = add_parameter(
-    RSS_FEED, {"includeOnly": "1", "include": FEED_COLUMNS, "token": RSS_TOKEN}
+    RSS_FEED,
+    {
+        "includeOnly": "1",
+        "include": FEED_COLUMNS,
+        "noKeyRevocationAlerts": "1",
+        "token": RSS_TOKEN,
+    },
 )
 
 

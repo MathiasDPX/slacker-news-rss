@@ -50,7 +50,7 @@ SLACK_APP_TOKEN="xapp-_____"
 ADMINS="U__________,U__________"
 ```
 
-`RSS_TOKEN` is a private feed key from [news.hackclub.com/rss](https://news.hackclub.com/rss/). The bot reads `feed.xml?includeOnly=1&include=news,opinion,essays,changelogs,protected&token=<RSS_TOKEN>`: exactly those categories, protected articles included, and no Slack columns such as YSWS. `RSS_FEED` optionally points at another feed.xml, like a staging site.
+`RSS_TOKEN` is a private feed key from [news.hackclub.com/rss](https://news.hackclub.com/rss/). The bot reads `feed.xml?includeOnly=1&include=news,opinion,essays,changelogs,protected&noKeyRevocationAlerts=1&token=<RSS_TOKEN>`: exactly those categories, protected articles included, and no Slack columns such as YSWS. If the token is revoked, the bot quietly gets public articles only, rather than posting a "Your key is revoked" notice to channels. `RSS_FEED` optionally points at another feed.xml, like a staging site.
 
 `ADMINS` is user ids of peoples allowed to delete Slacker News messages with the "Delete message" shortcut, separated with commas
 
